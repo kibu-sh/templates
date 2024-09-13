@@ -1,0 +1,32 @@
+openapi: 3.1.0
+info:
+    title: Discern API
+    contact:
+        name: MN3, Inc.
+        email: support@discern.com
+    version: 0.0.1
+paths:
+    /internal/health:
+        get:
+            tags:
+                - health
+            summary: 'TODO: this needs to be implemented, where should we pull this from in Go? A the comment above the function?'
+            description: 'TODO: this needs to be implemented, where should we pull this from in Go? A the comment above the function?'
+            operationId: Index
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/health.healthspec.IndexResponse'
+                    description: ''
+components:
+    schemas:
+        health.healthspec.IndexResponse:
+            type: object
+            properties:
+                ok:
+                    type: boolean
+            title: IndexResponse
+            required:
+                - ok
