@@ -1,0 +1,5 @@
+{
+  "code_gen": {
+    "output_dir": "src/backend"
+  }
+}
