@@ -1,0 +1,24 @@
+services:
+  postgres:
+    extends:
+      service: postgres
+      file: docker-compose.core.yaml
+
+  temporal:
+    depends_on:
+      - postgres
+    links:
+      - postgres:postgresql
+    extends:
+      service: temporal
+      file: docker-compose.core.yaml
+
+  temporal-ui:
+    depends_on:
+      - temporal
+    extends:
+      service: temporal-ui
+      file: docker-compose.core.yaml
+
+volumes:
+  postgres:
