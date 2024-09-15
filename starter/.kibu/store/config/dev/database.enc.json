@@ -1,0 +1,11 @@
+{
+	"EncryptionKey": {
+		"engine": "base64key",
+		"env": "dev",
+		"key": "smGbjm71Nxd1Ig5FS0wj9SlbzAIrnolCz9bQQ6uAhl4="
+	},
+	"Data": "646BRYE5OGUv0Wc+bJGyY6gUcsbg1LqjzFHmlvCKCJj+IpaOTOf8Qz2pGnVIXqNLxchkcOsahdt7p7ENUQKD2hIXA5+/MbQjrv4AnHaXKOUGWbCUUQXo1dBu2y3i4Vhmo5szWISB7ySfWhZmjLKBez3aNo+SmSCHc53A",
+	"Version": 3864950554387332201,
+	"CreatedAt": "2024-09-14T09:11:06.757547-07:00",
+	"LastModifiedAt": "2024-09-14T09:11:06.757547-07:00"
+}
