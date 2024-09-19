@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kibu-sh/kibu/pkg/config"
@@ -27,13 +28,23 @@ func (t *txnImpl) Querier() Querier {
 	return New(t)
 }
 
+// RollbackOnErr is intended to be deferred with a pointer reference to an error that is returned from its caller.
+// If the parent function returns an error, the transaction will be rolled back.
+// If the parent function does not return an error, the transaction will be committed.
+//
+// Example:
+//
+//	defer txn.RollbackOnErr(&err)
 func (t *txnImpl) RollbackOnErr(err *error) {
-	if *err != nil {
-		_ = t.Rollback(t.ctx)
+	if *err == nil {
+		// overwrite with possible commit error
+		// will be nil if the transaction commits successfully
+		*err = t.Commit(t.ctx)
 		return
 	}
 
-	*err = t.Commit(t.ctx)
+	// the parent function failed, and the txn should be rolled back
+	*err = errors.Join(*err, t.Rollback(t.ctx))
 }
 
 type TxnProvider func(ctx context.Context) (context.Context, Txn, error)
