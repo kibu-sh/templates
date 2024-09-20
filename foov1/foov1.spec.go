@@ -17,13 +17,14 @@ type workflows struct {
 }
 
 func (w *workflows) ScheduledWork(ctx workflow.Context) {
-	run := w.BarV1.StartSomeLongProcessAsync(ctx, barv1.LongWorkflowParams{}, func(builder temporal.WorkflowOptionsBuilder) temporal.WorkflowOptionsBuilder {
-		return builder.
-			WithEnableEagerStart(true).
-			WithStartDelay(10 * time.Second)
-	})
+	run := w.BarV1.CustomerBillingAsync(ctx, barv1.CustomerBillingParams{}, withCustomStartDelay)
 
-	run.IsReady()
-
+	run.Get(ctx)
 	return
+}
+
+func withCustomStartDelay(builder temporal.WorkflowOptionsBuilder) temporal.WorkflowOptionsBuilder {
+	return builder.
+		WithEnableEagerStart(true).
+		WithStartDelay(10 * time.Second)
 }
