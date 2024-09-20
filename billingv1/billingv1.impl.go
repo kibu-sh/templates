@@ -1,14 +1,36 @@
-package barv1
+package billingv1
 
 import (
+	"errors"
 	"go.temporal.io/sdk/workflow"
 )
 
+// come back to this line
+////go:generate go run github.com/kibu-sh/kibu/cmd/kibu@latest build ./
+
+// activities synchronize the workflow state with an external payment gateway
+//
+//kibu:worker:activity task_queue=billingv1
+type activities struct{}
+
+// ChargePaymentMethod performs work against another transactional system
+//
+//kibu:activity
+func (a *activities) ChargePaymentMethod(ctx workflow.Context, req ChargePaymentMethodRequest) (res ChargePaymentMethodResponse, err error) {
+	res.Success = !req.Fail
+
+	if !res.Success {
+		err = errors.New("payment failed")
+	}
+	return
+}
+
 // customerBillingWorkflow represents a single long-running workflow for a customer
 //
-//kibu:workflow
+//kibu:worker:workflow task_queue=billingv1
 type customerBillingWorkflow struct {
 	accountStatus AccountStatus
+	discountCode  string
 }
 
 // Execute initiates a long-running workflow for the customers account
@@ -27,15 +49,32 @@ func (wf *customerBillingWorkflow) Execute(ctx workflow.Context, req CustomerBil
 	}
 
 	workflow.Go(ctx, func(ctx workflow.Context) {
-		channel := workflow.GetSignalChannelWithOptions(ctx,
-			barv1CustomerBillingWorkflowSetProgressName,
-			workflow.SignalChannelOptions{
-				// TODO: get from struct comment
-				Description: "Sets the progress of the billing process",
-			})
+		for {
+			channel := workflow.GetSignalChannelWithOptions(ctx,
+				barv1CustomerBillingWorkflowCancelBillingName,
+				workflow.SignalChannelOptions{
+					// TODO: get from struct comment
+					Description: "Sets the progress of the billing process",
+				})
 
-		var signal SetProgressParams
-		channel.Receive(ctx, &signal)
+			var signal CancelBillingSignal
+			channel.Receive(ctx, &signal)
+		}
+	})
+
+	workflow.Go(ctx, func(ctx workflow.Context) {
+		for {
+			channel := workflow.GetSignalChannelWithOptions(ctx,
+				barv1CustomerBillingWorkflowSetDiscountName,
+				workflow.SignalChannelOptions{
+					// TODO: get from struct comment
+					Description: "Sets the progress of the billing process",
+				})
+
+			var signal SetDiscountSignal
+			channel.Receive(ctx, &signal)
+			_ = wf.SetDiscount(signal)
+		}
 	})
 
 	ctx.Done().Receive(ctx, nil)
@@ -69,4 +108,9 @@ func (wf *customerBillingWorkflow) AttemptPayment(ctx workflow.Context, req Atte
 	wf.accountStatus = AccountStatusPaymentPending
 	// TODO: process transaction here
 	return
+}
+
+func (wf *customerBillingWorkflow) SetDiscount(req SetDiscountSignal) error {
+	wf.discountCode = req.DiscountCode
+	return nil
 }
