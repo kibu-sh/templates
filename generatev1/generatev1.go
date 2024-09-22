@@ -191,7 +191,7 @@ func GenerateCustomerBillingWorkflowClientInterface() *jen.Statement {
 			jen.Id("CustomerBillingWorkflowRun"),
 			jen.Error(),
 		),
-		jen.Id("SignalWithStartSetDiscount").Params(
+		jen.Id("ExecuteWithSetDiscount").Params(
 			jen.Id("ctx").Qual("context", "Context"),
 			jen.Id("req").Id("SetDiscountSignal"),
 		).Params(
@@ -371,7 +371,7 @@ func GenerateCustomerBillingWorkflowClient() *jen.Statement {
 				},
 			), jen.Nil()),
 		)).
-		Add(jen.Func().Params(jen.Id("c").Op("*").Id("customerBillingWorkflowClient")).Id("SignalWithStartSetDiscount").Params(
+		Add(jen.Func().Params(jen.Id("c").Op("*").Id("customerBillingWorkflowClient")).Id("ExecuteWithSetDiscount").Params(
 			jen.Id("ctx").Qual("context", "Context"),
 			jen.Id("req").Id("SetDiscountSignal"),
 		).Params(

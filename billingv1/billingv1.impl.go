@@ -25,10 +25,10 @@ func (a *activities) ChargePaymentMethod(ctx workflow.Context, req ChargePayment
 	return
 }
 
-// customerBillingWorkflow represents a single long-running workflow for a customer
+// customerSubscriptionsWorkflow represents a single long-running workflow for a customer
 //
 //kibu:worker:workflow task_queue=billingv1
-type customerBillingWorkflow struct {
+type customerSubscriptionsWorkflow struct {
 	accountStatus AccountStatus
 	discountCode  string
 }
@@ -36,7 +36,7 @@ type customerBillingWorkflow struct {
 // Execute initiates a long-running workflow for the customers account
 //
 //kibu:workflow:execute
-func (wf *customerBillingWorkflow) Execute(ctx workflow.Context, req CustomerBillingRequest) (res CustomerBillingResponse, err error) {
+func (wf *customerSubscriptionsWorkflow) Execute(ctx workflow.Context, req CustomerBillingRequest) (res CustomerBillingResponse, err error) {
 	// set initial account status
 	wf.accountStatus = AccountStatusSubscribed
 
@@ -86,7 +86,7 @@ func (wf *customerBillingWorkflow) Execute(ctx workflow.Context, req CustomerBil
 // should not call activities (helps prevent accidental activity calls)
 //
 //kibu:workflow:query
-func (wf *customerBillingWorkflow) GetAccountDetails(req GetAccountDetailsRequest) (res GetAccountDetailsResult, err error) {
+func (wf *customerSubscriptionsWorkflow) GetAccountDetails(req GetAccountDetailsRequest) (res GetAccountDetailsResult, err error) {
 	res.Status = wf.accountStatus
 	return
 }
@@ -95,7 +95,7 @@ func (wf *customerBillingWorkflow) GetAccountDetails(req GetAccountDetailsReques
 // this will end the workflow
 //
 //kibu:workflow:signal
-func (wf *customerBillingWorkflow) CancelBilling(ctx workflow.Context, req CancelBillingRequest) (err error) {
+func (wf *customerSubscriptionsWorkflow) CancelBilling(ctx workflow.Context, req CancelBillingRequest) (err error) {
 	wf.accountStatus = AccountStatusCanceled
 	return
 }
@@ -104,13 +104,13 @@ func (wf *customerBillingWorkflow) CancelBilling(ctx workflow.Context, req Cance
 // the account status will reflect the outcome of the attempt
 //
 //kibu:workflow:update
-func (wf *customerBillingWorkflow) AttemptPayment(ctx workflow.Context, req AttemptPaymentRequest) (res AttemptPaymentResponse, err error) {
+func (wf *customerSubscriptionsWorkflow) AttemptPayment(ctx workflow.Context, req AttemptPaymentRequest) (res AttemptPaymentResponse, err error) {
 	wf.accountStatus = AccountStatusPaymentPending
 	// TODO: process transaction here
 	return
 }
 
-func (wf *customerBillingWorkflow) SetDiscount(req SetDiscountSignal) error {
+func (wf *customerSubscriptionsWorkflow) SetDiscount(req SetDiscountSignal) error {
 	wf.discountCode = req.DiscountCode
 	return nil
 }
