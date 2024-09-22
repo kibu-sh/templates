@@ -1,5 +1,10 @@
 package billingv1
 
+import (
+	"context"
+	"go.temporal.io/sdk/workflow"
+)
+
 type AccountStatus string
 
 const (
@@ -43,4 +48,48 @@ type AttemptPaymentResponse struct {
 type GetAccountDetailsRequest struct{}
 type GetAccountDetailsResult struct {
 	Status AccountStatus
+}
+
+// Activities synchronize the workflow state with an external payment gateway
+//
+//kibu:worker
+type Activities interface {
+	// ChargePaymentMethod performs work against another transactional system
+	//
+	//kibu:activity
+	ChargePaymentMethod(ctx context.Context, req ChargePaymentMethodRequest) (res ChargePaymentMethodResponse, err error)
+}
+
+// CustomerSubscriptionsWorkflow represents a single long-running workflow for a customer
+//
+//kibu:workflow
+type CustomerSubscriptionsWorkflow interface {
+	// Execute initiates a long-running workflow for the customers account
+	//
+	//kibu:workflow:execute
+	Execute(ctx workflow.Context, req CustomerSubscriptionsRequest) (res CustomerSubscriptionsResponse, err error)
+
+	// AttemptPayment attempts to charge the customers payment method
+	// the account status will reflect the outcome of the attempt
+	//
+	//kibu:workflow:update
+	AttemptPayment(ctx workflow.Context, req AttemptPaymentRequest) (res AttemptPaymentResponse, err error)
+
+	// SetDiscount sets the discount code for the customer
+	//
+	//kibu:workflow:signal
+	SetDiscount(ctx workflow.Context, req SetDiscountRequest) error
+
+	// CancelBilling sends a signalChannel to cancel the customer's billing process
+	// this will end the workflow
+	//
+	//kibu:workflow:signal
+	CancelBilling(ctx workflow.Context, req CancelBillingRequest) error
+
+	// GetAccountDetails returns the current account status
+	// should not mutate state, doesn't have context
+	// should not call activities (helps enforce determinism)
+	//
+	//kibu:workflow:query
+	GetAccountDetails(req GetAccountDetailsRequest) (res GetAccountDetailsResult, err error)
 }

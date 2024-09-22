@@ -3,6 +3,7 @@ package foov1
 import (
 	billingv1 "barv1"
 	"context"
+	"github.com/kibu-sh/kibu/pkg/transport/temporal"
 	"go.temporal.io/sdk/workflow"
 )
 
@@ -15,7 +16,7 @@ type workflows struct {
 }
 
 func (a *activities) TryFromActivity(ctx context.Context) {
-	handle, err := a.Billingv1.CustomerSubscriptions().GetHandle(ctx, billingv1.GetHandleOpts{
+	handle, err := a.Billingv1.CustomerSubscriptions().GetHandle(ctx, temporal.GetHandleOpts{
 		WorkflowID: "",
 		RunID:      "",
 	})
@@ -67,7 +68,7 @@ func (wf *workflows) TryFromWorkflow(ctx workflow.Context) {
 
 	_, _ = handle.Get(ctx)
 
-	externalHandle := wf.Billingv1.CustomerSubscriptions().External(billingv1.GetHandleOpts{
+	externalHandle := wf.Billingv1.CustomerSubscriptions().External(temporal.GetHandleOpts{
 		WorkflowID: "external-id",
 		RunID:      "maybe-run-id",
 	})
