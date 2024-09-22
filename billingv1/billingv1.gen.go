@@ -2,7 +2,7 @@ package billingv1
 
 import (
 	"context"
-	"github.com/kibu-sh/kibu/pkg/transport/temporal"
+	. "github.com/kibu-sh/kibu/pkg/transport/temporal"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
 )
@@ -13,140 +13,84 @@ const (
 	customerSubscriptionsWorkflowName                  = "billingv1.customerSubscriptions"
 	customerSubscriptionsWorkflowAttemptPaymentName    = "billingv1.customerSubscriptions.AttemptPayment"
 	customerSubscriptionsWorkflowGetAccountDetailsName = "billingv1.customerSubscriptions.GetAccountDetails"
-	customerSubscriptionsWorkflowCancelBillingName     = "billingv1.customerSubscriptions.CancelBilling"
+	customerSubscriptionsWorkflowCancelBillingName     = "billingv1.customerSubscriptions.CancelBillingRequest"
 	customerSubscriptionsWorkflowSetDiscountName       = "billingv1.customerSubscriptions.SetDiscount"
 	activitiesChargePaymentMethodName                  = "billingv1.activities.ChargePaymentMethod"
 )
 
-type WorkflowOptionFunc = temporal.WorkflowOptionFunc
-type ActivityOptionFunc = temporal.ActivityOptionFunc
-type UpdateOptionFunc = temporal.UpdateOptionFunc
-
-type GetHandleOpts struct {
-	WorkflowID string
-	RunID      string
+func NewSetDiscountSignalChannel(ctx workflow.Context) SignalChannel[SetDiscountRequest] {
+	return NewSignalChannel[SetDiscountRequest](ctx, customerSubscriptionsWorkflowSetDiscountName)
 }
 
-type UpdateHandle[T any] interface {
-	UpdateID() string
-	WorkflowID() string
-	RunID() string
-	Get(ctx context.Context) (T, error)
+func NewCancelBillingSignalChannel(ctx workflow.Context) SignalChannel[CancelBillingRequest] {
+	return NewSignalChannel[CancelBillingRequest](ctx, customerSubscriptionsWorkflowCancelBillingName)
 }
 
-var _ UpdateHandle[any] = (*updateHandle[any])(nil)
-
-type updateHandle[T any] struct {
-	handle client.WorkflowUpdateHandle
-}
-
-func (u updateHandle[T]) UpdateID() string {
-	return u.handle.UpdateID()
-}
-
-func (u updateHandle[T]) WorkflowID() string {
-	return u.handle.WorkflowID()
-}
-
-func (u updateHandle[T]) RunID() string {
-	return u.handle.RunID()
-}
-
-func (u updateHandle[T]) Get(ctx context.Context) (T, error) {
-	var result T
-	err := u.handle.Get(ctx, &result)
-	return result, err
-}
-
-func NewUpdateHandle[T any](handle client.WorkflowUpdateHandle) UpdateHandle[T] {
-	return &updateHandle[T]{handle}
-}
-
-type SignalHandle interface {
-	Get(workflow.Context) error
-	IsReady() bool
-}
-
-type signalHandle[T any] struct {
-	handle workflow.Future
-}
-
-func (s signalHandle[T]) Get(ctx workflow.Context) error {
-	return s.handle.Get(ctx, nil)
-}
-
-func (s signalHandle[T]) IsReady() bool {
-	return s.handle.IsReady()
-}
-
-func NewSignalHandle[T any](handle workflow.Future) SignalHandle {
-	return &signalHandle[T]{handle}
-}
-
-type AttemptPaymentFuture = UpdateHandle[AttemptPaymentResponse]
-type SetDiscountFuture = SignalHandle
-
-type CustomerBillingWorkflowRun interface {
+type CustomerSubscriptionsWorkflowRun interface {
 	ID() string
 	RunID() string
-	Get(ctx context.Context) (CustomerBillingResponse, error)
+	Get(ctx context.Context) (CustomerSubscriptionsResponse, error)
 
-	CancelBilling(ctx context.Context, req CancelBillingSignal) error
-	SetDiscount(ctx context.Context, req SetDiscountSignal) error
+	CancelBilling(ctx context.Context, req CancelBillingRequest) error
+	SetDiscount(ctx context.Context, req SetDiscountRequest) error
 
 	GetAccountDetails(ctx context.Context, req GetAccountDetailsRequest) (GetAccountDetailsResult, error)
 
 	AttemptPayment(ctx context.Context, req AttemptPaymentRequest, mods ...UpdateOptionFunc) (AttemptPaymentResponse, error)
-	AttemptPaymentAsync(ctx context.Context, req AttemptPaymentRequest, mods ...UpdateOptionFunc) (AttemptPaymentFuture, error)
+	AttemptPaymentAsync(ctx context.Context, req AttemptPaymentRequest, mods ...UpdateOptionFunc) (UpdateHandle[AttemptPaymentResponse], error)
 }
 
-type CustomerBillingWorkflowClient interface {
-	GetHandle(ctx context.Context, ref GetHandleOpts) (CustomerBillingWorkflowRun, error)
-	Execute(ctx context.Context, req CustomerBillingRequest, mods ...WorkflowOptionFunc) (CustomerBillingWorkflowRun, error)
-	ExecuteWithSetDiscount(ctx context.Context, req *CustomerBillingRequest, sig SetDiscountSignal, mods ...WorkflowOptionFunc) (CustomerBillingWorkflowRun, error)
+type CustomerSubscriptionsWorkflowClient interface {
+	GetHandle(ctx context.Context, ref GetHandleOpts) (CustomerSubscriptionsWorkflowRun, error)
+	Execute(ctx context.Context, req CustomerSubscriptionsRequest, mods ...WorkflowOptionFunc) (CustomerSubscriptionsWorkflowRun, error)
+	ExecuteWithSetDiscount(ctx context.Context, req *CustomerSubscriptionsRequest, sig SetDiscountRequest, mods ...WorkflowOptionFunc) (CustomerSubscriptionsWorkflowRun, error)
 }
 
-type CustomerBillingWorkflowChildRun interface {
+type CustomerSubscriptionsWorkflowChildRun interface {
 	ID() string
 	IsReady() bool
 	Underlying() workflow.ChildWorkflowFuture
-	Get(ctx workflow.Context) (CustomerBillingResponse, error)
-	CancelBilling(ctx workflow.Context, req CancelBillingSignal) error
-	SetDiscount(ctx workflow.Context, req SetDiscountSignal) error
+	Get(ctx workflow.Context) (CustomerSubscriptionsResponse, error)
+	CancelBilling(ctx workflow.Context, req CancelBillingRequest) error
+	SetDiscount(ctx workflow.Context, req SetDiscountRequest) error
+
+	WaitStart(ctx workflow.Context) (*workflow.Execution, error)
+	SelectStart(sel workflow.Selector, fn func(CustomerSubscriptionsWorkflowChildRun)) workflow.Selector
+	Select(sel workflow.Selector, fn func(CustomerSubscriptionsWorkflowChildRun)) workflow.Selector
 }
 
-type CustomerBillingExternalRun interface {
+type CustomerSubscriptionsExternalRun interface {
 	ID() string
 	RunID() string
 
 	RequestCancellation(ctx workflow.Context) error
 
-	CancelBilling(ctx workflow.Context, req CancelBillingSignal) error
-	CancelBillingAsync(ctx workflow.Context, req CancelBillingSignal) workflow.Future
+	CancelBilling(ctx workflow.Context, req CancelBillingRequest) error
+	CancelBillingAsync(ctx workflow.Context, req CancelBillingRequest) workflow.Future
 
-	SetDiscount(ctx workflow.Context, req SetDiscountSignal) error
-	SetDiscountAsync(ctx workflow.Context, req SetDiscountSignal) workflow.Future
+	SetDiscount(ctx workflow.Context, req SetDiscountRequest) error
+	SetDiscountAsync(ctx workflow.Context, req SetDiscountRequest) workflow.Future
 }
 
-type CustomerBillingWorkflowChildClient interface {
-	Execute(ctx workflow.Context, req CustomerBillingRequest, mods ...WorkflowOptionFunc) (CustomerBillingResponse, error)
-	ExecuteAsync(ctx workflow.Context, req CustomerBillingRequest, mods ...WorkflowOptionFunc) CustomerBillingWorkflowChildRun
-	External(ref GetHandleOpts) CustomerBillingExternalRun
+type CustomerSubscriptionsWorkflowChildClient interface {
+	Execute(ctx workflow.Context, req CustomerSubscriptionsRequest, mods ...WorkflowOptionFunc) (CustomerSubscriptionsResponse, error)
+	ExecuteAsync(ctx workflow.Context, req CustomerSubscriptionsRequest, mods ...WorkflowOptionFunc) CustomerSubscriptionsWorkflowChildRun
+	External(ref GetHandleOpts) CustomerSubscriptionsExternalRun
 }
 
 type WorkflowsProxy interface {
-	CustomerBilling() CustomerBillingWorkflowChildClient
+	CustomerSubscriptions() CustomerSubscriptionsWorkflowChildClient
 }
 
 type WorkflowsClient interface {
-	CustomerBilling() CustomerBillingWorkflowClient
+	CustomerSubscriptions() CustomerSubscriptionsWorkflowClient
 }
 
 type workflowsClient struct {
 	client client.Client
 }
 
-func (w *workflowsClient) CustomerBilling() CustomerBillingWorkflowClient {
+func (w *workflowsClient) CustomerSubscriptions() CustomerSubscriptionsWorkflowClient {
 	return &customerSubscriptionsClient{
 		client: w.client,
 	}
@@ -154,7 +98,7 @@ func (w *workflowsClient) CustomerBilling() CustomerBillingWorkflowClient {
 
 type workflowsProxy struct{}
 
-func (w *workflowsProxy) CustomerBilling() CustomerBillingWorkflowChildClient {
+func (w *workflowsProxy) CustomerSubscriptions() CustomerSubscriptionsWorkflowChildClient {
 	return &customerSubscriptionsChildClient{}
 }
 
@@ -162,8 +106,8 @@ type customerSubscriptionsClient struct {
 	client client.Client
 }
 
-func (c *customerSubscriptionsClient) Execute(ctx context.Context, req CustomerBillingRequest, mods ...WorkflowOptionFunc) (CustomerBillingWorkflowRun, error) {
-	options := temporal.NewWorkflowOptionsBuilder().
+func (c *customerSubscriptionsClient) Execute(ctx context.Context, req CustomerSubscriptionsRequest, mods ...WorkflowOptionFunc) (CustomerSubscriptionsWorkflowRun, error) {
+	options := NewWorkflowOptionsBuilder().
 		WithProvidersWhenSupported(req).
 		WithOptions(mods...).
 		WithTaskQueue(defaultTaskQueueName).
@@ -180,15 +124,15 @@ func (c *customerSubscriptionsClient) Execute(ctx context.Context, req CustomerB
 	}, nil
 }
 
-func (c *customerSubscriptionsClient) GetHandle(ctx context.Context, ref GetHandleOpts) (CustomerBillingWorkflowRun, error) {
+func (c *customerSubscriptionsClient) GetHandle(ctx context.Context, ref GetHandleOpts) (CustomerSubscriptionsWorkflowRun, error) {
 	return &customerSubscriptionsRun{
 		client:      c.client,
 		workflowRun: c.client.GetWorkflow(ctx, ref.WorkflowID, ref.RunID),
 	}, nil
 }
 
-func (c *customerSubscriptionsClient) ExecuteWithSetDiscount(ctx context.Context, req *CustomerBillingRequest, sig SetDiscountSignal, mods ...WorkflowOptionFunc) (CustomerBillingWorkflowRun, error) {
-	options := temporal.NewWorkflowOptionsBuilder().
+func (c *customerSubscriptionsClient) ExecuteWithSetDiscount(ctx context.Context, req *CustomerSubscriptionsRequest, sig SetDiscountRequest, mods ...WorkflowOptionFunc) (CustomerSubscriptionsWorkflowRun, error) {
+	options := NewWorkflowOptionsBuilder().
 		WithProvidersWhenSupported(sig).
 		WithOptions(mods...).
 		WithTaskQueue(defaultTaskQueueName).
@@ -214,12 +158,12 @@ func (c *customerSubscriptionsClient) ExecuteWithSetDiscount(ctx context.Context
 
 type customerSubscriptionsChildClient struct{}
 
-func (c *customerSubscriptionsChildClient) Execute(ctx workflow.Context, req CustomerBillingRequest, mods ...WorkflowOptionFunc) (CustomerBillingResponse, error) {
+func (c *customerSubscriptionsChildClient) Execute(ctx workflow.Context, req CustomerSubscriptionsRequest, mods ...WorkflowOptionFunc) (CustomerSubscriptionsResponse, error) {
 	return c.ExecuteAsync(ctx, req, mods...).Get(ctx)
 }
 
-func (c *customerSubscriptionsChildClient) ExecuteAsync(ctx workflow.Context, req CustomerBillingRequest, mods ...WorkflowOptionFunc) CustomerBillingWorkflowChildRun {
-	options := temporal.NewWorkflowOptionsBuilder().
+func (c *customerSubscriptionsChildClient) ExecuteAsync(ctx workflow.Context, req CustomerSubscriptionsRequest, mods ...WorkflowOptionFunc) CustomerSubscriptionsWorkflowChildRun {
+	options := NewWorkflowOptionsBuilder().
 		WithProvidersWhenSupported(req).
 		WithOptions(mods...).
 		WithTaskQueue(defaultTaskQueueName).
@@ -233,43 +177,43 @@ func (c *customerSubscriptionsChildClient) ExecuteAsync(ctx workflow.Context, re
 	}
 }
 
-func (c *customerSubscriptionsChildClient) External(ref GetHandleOpts) CustomerBillingExternalRun {
-	return &customerBillingExternalRun{
+func (c *customerSubscriptionsChildClient) External(ref GetHandleOpts) CustomerSubscriptionsExternalRun {
+	return &customerSubscriptionsExternalRun{
 		workflowID: ref.WorkflowID,
 		runID:      ref.RunID,
 	}
 }
 
-type customerBillingExternalRun struct {
+type customerSubscriptionsExternalRun struct {
 	workflowID string
 	runID      string
 }
 
-func (c *customerBillingExternalRun) ID() string {
+func (c *customerSubscriptionsExternalRun) ID() string {
 	return c.workflowID
 }
 
-func (c *customerBillingExternalRun) RunID() string {
+func (c *customerSubscriptionsExternalRun) RunID() string {
 	return c.runID
 }
 
-func (c *customerBillingExternalRun) RequestCancellation(ctx workflow.Context) error {
+func (c *customerSubscriptionsExternalRun) RequestCancellation(ctx workflow.Context) error {
 	return workflow.RequestCancelExternalWorkflow(ctx, c.workflowID, c.runID).Get(ctx, nil)
 }
 
-func (c *customerBillingExternalRun) CancelBilling(ctx workflow.Context, req CancelBillingSignal) error {
+func (c *customerSubscriptionsExternalRun) CancelBilling(ctx workflow.Context, req CancelBillingRequest) error {
 	return c.CancelBillingAsync(ctx, req).Get(ctx, nil)
 }
 
-func (c *customerBillingExternalRun) CancelBillingAsync(ctx workflow.Context, req CancelBillingSignal) workflow.Future {
+func (c *customerSubscriptionsExternalRun) CancelBillingAsync(ctx workflow.Context, req CancelBillingRequest) workflow.Future {
 	return workflow.SignalExternalWorkflow(ctx, c.workflowID, c.runID, customerSubscriptionsWorkflowCancelBillingName, req)
 }
 
-func (c *customerBillingExternalRun) SetDiscount(ctx workflow.Context, req SetDiscountSignal) error {
+func (c *customerSubscriptionsExternalRun) SetDiscount(ctx workflow.Context, req SetDiscountRequest) error {
 	return c.SetDiscountAsync(ctx, req).Get(ctx, nil)
 }
 
-func (c *customerBillingExternalRun) SetDiscountAsync(ctx workflow.Context, req SetDiscountSignal) workflow.Future {
+func (c *customerSubscriptionsExternalRun) SetDiscountAsync(ctx workflow.Context, req SetDiscountRequest) workflow.Future {
 	return workflow.SignalExternalWorkflow(ctx, c.workflowID, c.runID, customerSubscriptionsWorkflowSetDiscountName, req)
 }
 
@@ -286,14 +230,14 @@ func (c *customerSubscriptionsRun) RunID() string {
 	return c.workflowRun.GetRunID()
 }
 
-func (c *customerSubscriptionsRun) Get(ctx context.Context) (CustomerBillingResponse, error) {
-	var result CustomerBillingResponse
+func (c *customerSubscriptionsRun) Get(ctx context.Context) (CustomerSubscriptionsResponse, error) {
+	var result CustomerSubscriptionsResponse
 	err := c.workflowRun.Get(ctx, &result)
 	return result, err
 }
 
-func (c *customerSubscriptionsRun) AttemptPaymentAsync(ctx context.Context, req AttemptPaymentRequest, mods ...UpdateOptionFunc) (AttemptPaymentFuture, error) {
-	options := temporal.NewUpdateOptionsBuilder().
+func (c *customerSubscriptionsRun) AttemptPaymentAsync(ctx context.Context, req AttemptPaymentRequest, mods ...UpdateOptionFunc) (UpdateHandle[AttemptPaymentResponse], error) {
+	options := NewUpdateOptionsBuilder().
 		WithProvidersWhenSupported(req).
 		WithWorkflowID(c.ID()).
 		WithRunID(c.RunID()).
@@ -329,11 +273,11 @@ func (c *customerSubscriptionsRun) GetAccountDetails(ctx context.Context, req Ge
 	return result, err
 }
 
-func (c *customerSubscriptionsRun) CancelBilling(ctx context.Context, req CancelBillingSignal) error {
+func (c *customerSubscriptionsRun) CancelBilling(ctx context.Context, req CancelBillingRequest) error {
 	return c.client.SignalWorkflow(ctx, c.ID(), c.RunID(), customerSubscriptionsWorkflowCancelBillingName, req)
 }
 
-func (c *customerSubscriptionsRun) SetDiscount(ctx context.Context, req SetDiscountSignal) error {
+func (c *customerSubscriptionsRun) SetDiscount(ctx context.Context, req SetDiscountRequest) error {
 	return c.client.SignalWorkflow(ctx, c.ID(), c.RunID(), customerSubscriptionsWorkflowSetDiscountName, req)
 }
 
@@ -354,16 +298,41 @@ func (c *customerSubscriptionsChildRun) Underlying() workflow.ChildWorkflowFutur
 	return c.childFuture
 }
 
-func (c *customerSubscriptionsChildRun) Get(ctx workflow.Context) (CustomerBillingResponse, error) {
-	var result CustomerBillingResponse
+func (c *customerSubscriptionsChildRun) Get(ctx workflow.Context) (CustomerSubscriptionsResponse, error) {
+	var result CustomerSubscriptionsResponse
 	err := c.childFuture.Get(ctx, &result)
 	return result, err
 }
 
-func (c *customerSubscriptionsChildRun) CancelBilling(ctx workflow.Context, req CancelBillingSignal) error {
+func (c *customerSubscriptionsChildRun) CancelBilling(ctx workflow.Context, req CancelBillingRequest) error {
 	return c.childFuture.SignalChildWorkflow(ctx, customerSubscriptionsWorkflowCancelBillingName, req).Get(ctx, nil)
 }
 
-func (c *customerSubscriptionsChildRun) SetDiscount(ctx workflow.Context, req SetDiscountSignal) error {
+func (c *customerSubscriptionsChildRun) SetDiscount(ctx workflow.Context, req SetDiscountRequest) error {
 	return c.childFuture.SignalChildWorkflow(ctx, customerSubscriptionsWorkflowSetDiscountName, req).Get(ctx, nil)
+}
+
+func (c *customerSubscriptionsChildRun) Select(sel workflow.Selector, fn func(CustomerSubscriptionsWorkflowChildRun)) workflow.Selector {
+	return sel.AddFuture(c.childFuture, func(workflow.Future) {
+		if fn != nil {
+			fn(c)
+		}
+	})
+}
+
+func (c *customerSubscriptionsChildRun) SelectStart(sel workflow.Selector, fn func(CustomerSubscriptionsWorkflowChildRun)) workflow.Selector {
+	return sel.AddFuture(c.childFuture.GetChildWorkflowExecution(), func(workflow.Future) {
+		if fn != nil {
+			fn(c)
+		}
+	})
+}
+
+func (c *customerSubscriptionsChildRun) WaitStart(ctx workflow.Context) (*workflow.Execution, error) {
+	var exec workflow.Execution
+	err := c.childFuture.GetChildWorkflowExecution().Get(ctx, &exec)
+	if err != nil {
+		return nil, err
+	}
+	return &exec, nil
 }

@@ -23,14 +23,14 @@ type ChargePaymentMethodResponse struct {
 	Success bool `json:"success"`
 }
 
-type CustomerBillingRequest struct{}
-type CustomerBillingResponse struct{}
+type CustomerSubscriptionsRequest struct{}
+type CustomerSubscriptionsResponse struct{}
 
-type SetDiscountSignal struct {
+type SetDiscountRequest struct {
 	DiscountCode string `json:"discount_code"`
 }
 
-type CancelBillingSignal struct{}
+type CancelBillingRequest struct{}
 
 type AttemptPaymentRequest struct {
 	Fail bool `json:"fail"`

@@ -15,17 +15,24 @@ type workflows struct {
 }
 
 func (a *activities) TryFromActivity(ctx context.Context) {
-	handle, err := a.Billingv1.CustomerBilling().GetHandle(ctx, billingv1.GetHandleOpts{
+	handle, err := a.Billingv1.CustomerSubscriptions().GetHandle(ctx, billingv1.GetHandleOpts{
 		WorkflowID: "",
 		RunID:      "",
 	})
+	if err != nil {
+		return
+	}
+
+	a.Billingv1.
+		CustomerSubscriptions().
+		Execute(ctx, billingv1.CustomerSubscriptionsRequest{})
 
 	_, err = handle.GetAccountDetails(ctx, billingv1.GetAccountDetailsRequest{})
 	if err != nil {
 		return
 	}
 
-	err = handle.SetDiscount(ctx, billingv1.SetDiscountSignal{
+	err = handle.SetDiscount(ctx, billingv1.SetDiscountRequest{
 		DiscountCode: "temporal.replay.100.percent.off",
 	})
 
@@ -37,7 +44,7 @@ func (a *activities) TryFromActivity(ctx context.Context) {
 		Fail: true,
 	})
 
-	err = handle.CancelBilling(ctx, billingv1.CancelBillingSignal{})
+	err = handle.CancelBilling(ctx, billingv1.CancelBillingRequest{})
 	if err != nil {
 		return
 	}
@@ -47,10 +54,10 @@ func (a *activities) TryFromActivity(ctx context.Context) {
 
 func (wf *workflows) TryFromWorkflow(ctx workflow.Context) {
 	handle := wf.Billingv1.
-		CustomerBilling().
-		ExecuteAsync(ctx, billingv1.CustomerBillingRequest{})
+		CustomerSubscriptions().
+		ExecuteAsync(ctx, billingv1.CustomerSubscriptionsRequest{})
 
-	err := handle.SetDiscount(ctx, billingv1.SetDiscountSignal{
+	err := handle.SetDiscount(ctx, billingv1.SetDiscountRequest{
 		DiscountCode: "temporal.replay.100.percent.off",
 	})
 
@@ -60,12 +67,12 @@ func (wf *workflows) TryFromWorkflow(ctx workflow.Context) {
 
 	_, _ = handle.Get(ctx)
 
-	externalHandle := wf.Billingv1.CustomerBilling().External(billingv1.GetHandleOpts{
+	externalHandle := wf.Billingv1.CustomerSubscriptions().External(billingv1.GetHandleOpts{
 		WorkflowID: "external-id",
 		RunID:      "maybe-run-id",
 	})
 
-	_ = externalHandle.SetDiscount(ctx, billingv1.SetDiscountSignal{
+	_ = externalHandle.SetDiscount(ctx, billingv1.SetDiscountRequest{
 		DiscountCode: "temporal.replay.100.percent.off",
 	})
 

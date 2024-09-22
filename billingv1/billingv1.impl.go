@@ -10,7 +10,7 @@ import (
 
 // activities synchronize the workflow state with an external payment gateway
 //
-//kibu:worker:activity task_queue=billingv1
+//kibu:worker:activity
 type activities struct{}
 
 // ChargePaymentMethod performs work against another transactional system
@@ -27,7 +27,7 @@ func (a *activities) ChargePaymentMethod(ctx workflow.Context, req ChargePayment
 
 // customerSubscriptionsWorkflow represents a single long-running workflow for a customer
 //
-//kibu:worker:workflow task_queue=billingv1
+//kibu:worker:workflow
 type customerSubscriptionsWorkflow struct {
 	accountStatus AccountStatus
 	discountCode  string
@@ -36,7 +36,10 @@ type customerSubscriptionsWorkflow struct {
 // Execute initiates a long-running workflow for the customers account
 //
 //kibu:workflow:execute
-func (wf *customerSubscriptionsWorkflow) Execute(ctx workflow.Context, req CustomerBillingRequest) (res CustomerBillingResponse, err error) {
+func (wf *customerSubscriptionsWorkflow) Execute(
+	ctx workflow.Context,
+	req CustomerSubscriptionsRequest,
+) (res CustomerSubscriptionsResponse, err error) {
 	// set initial account status
 	wf.accountStatus = AccountStatusSubscribed
 
@@ -50,29 +53,14 @@ func (wf *customerSubscriptionsWorkflow) Execute(ctx workflow.Context, req Custo
 
 	workflow.Go(ctx, func(ctx workflow.Context) {
 		for {
-			channel := workflow.GetSignalChannelWithOptions(ctx,
-				barv1CustomerBillingWorkflowCancelBillingName,
-				workflow.SignalChannelOptions{
-					// TODO: get from struct comment
-					Description: "Sets the progress of the billing process",
-				})
-
-			var signal CancelBillingSignal
-			channel.Receive(ctx, &signal)
+			signal, _ := NewCancelBillingSignalChannel(ctx).Receive(ctx)
+			_ = wf.CancelBilling(ctx, signal)
 		}
 	})
 
 	workflow.Go(ctx, func(ctx workflow.Context) {
 		for {
-			channel := workflow.GetSignalChannelWithOptions(ctx,
-				barv1CustomerBillingWorkflowSetDiscountName,
-				workflow.SignalChannelOptions{
-					// TODO: get from struct comment
-					Description: "Sets the progress of the billing process",
-				})
-
-			var signal SetDiscountSignal
-			channel.Receive(ctx, &signal)
+			signal, _ := NewSetDiscountSignalChannel(ctx).Receive(ctx)
 			_ = wf.SetDiscount(signal)
 		}
 	})
@@ -91,10 +79,10 @@ func (wf *customerSubscriptionsWorkflow) GetAccountDetails(req GetAccountDetails
 	return
 }
 
-// CancelBilling sends a signal to cancel the customer's billing process
+// CancelBilling sends a signalChannel to cancel the customer's billing process
 // this will end the workflow
 //
-//kibu:workflow:signal
+//kibu:workflow:signalChannel
 func (wf *customerSubscriptionsWorkflow) CancelBilling(ctx workflow.Context, req CancelBillingRequest) (err error) {
 	wf.accountStatus = AccountStatusCanceled
 	return
@@ -110,7 +98,10 @@ func (wf *customerSubscriptionsWorkflow) AttemptPayment(ctx workflow.Context, re
 	return
 }
 
-func (wf *customerSubscriptionsWorkflow) SetDiscount(req SetDiscountSignal) error {
+// SetDiscount sets the discount code for the customer
+//
+//kibu:workflow:signalChannel
+func (wf *customerSubscriptionsWorkflow) SetDiscount(req SetDiscountRequest) error {
 	wf.discountCode = req.DiscountCode
 	return nil
 }

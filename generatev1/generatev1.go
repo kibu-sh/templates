@@ -285,14 +285,14 @@ func GenerateCustomerBillingWorkflowChildClientInterface() *jen.Statement {
 // GenerateWorkflowsProxyInterface generates the WorkflowsProxy interface.
 func GenerateWorkflowsProxyInterface() *jen.Statement {
 	return jen.Type().Id("WorkflowsProxy").Interface(
-		jen.Id("CustomerBilling").Params().Id("CustomerBillingWorkflowChildClient"),
+		jen.Id("CustomerSubscriptions").Params().Id("CustomerBillingWorkflowChildClient"),
 	)
 }
 
 // GenerateWorkflowsClientInterface generates the WorkflowsClient interface.
 func GenerateWorkflowsClientInterface() *jen.Statement {
 	return jen.Type().Id("WorkflowsClient").Interface(
-		jen.Id("CustomerBilling").Params().Id("CustomerBillingWorkflowClient"),
+		jen.Id("CustomerSubscriptions").Params().Id("CustomerBillingWorkflowClient"),
 	)
 }
 
@@ -301,7 +301,7 @@ func GenerateWorkflowsClient() *jen.Statement {
 	return jen.Type().Id("workflowsClient").Struct(
 		jen.Id("client").Qual("go.temporal.io/sdk/client", "Client"),
 	).Line().
-		Add(jen.Func().Params(jen.Id("w").Op("*").Id("workflowsClient")).Id("CustomerBilling").Params().Id("CustomerBillingWorkflowClient").Block(
+		Add(jen.Func().Params(jen.Id("w").Op("*").Id("workflowsClient")).Id("CustomerSubscriptions").Params().Id("CustomerBillingWorkflowClient").Block(
 			jen.Return(jen.Op("&").Id("customerBillingWorkflowClient").Values(
 				jen.Dict{
 					jen.Id("client"): jen.Id("w").Dot("client"),
@@ -313,7 +313,7 @@ func GenerateWorkflowsClient() *jen.Statement {
 // GenerateWorkflowsProxy generates the workflowsProxy struct and its methods.
 func GenerateWorkflowsProxy() *jen.Statement {
 	return jen.Type().Id("workflowsProxy").Struct().Line().
-		Add(jen.Func().Params(jen.Id("w").Op("*").Id("workflowsProxy")).Id("CustomerBilling").Params().Id("CustomerBillingWorkflowChildClient").Block(
+		Add(jen.Func().Params(jen.Id("w").Op("*").Id("workflowsProxy")).Id("CustomerSubscriptions").Params().Id("CustomerBillingWorkflowChildClient").Block(
 			jen.Return(jen.Op("&").Id("customerBillingWorkflowChildClient").Values()),
 		))
 }
