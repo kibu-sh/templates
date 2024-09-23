@@ -1,48 +1,12 @@
 package billingv1
 
 import (
-	"context"
-	"errors"
 	"go.temporal.io/sdk/workflow"
 )
 
-// service implements Service
-type service struct {
-	Workflows WorkflowsClient
-}
-
-// WatchAccount implements Service.WatchAccount
-func (s *service) WatchAccount(ctx context.Context, req WatchAccountRequest) (res WatchAccountResponse, err error) {
-	run, err := s.Workflows.CustomerSubscriptions().Execute(ctx, CustomerSubscriptionsRequest{})
-	if err != nil {
-		return
-	}
-
-	accountRes, err := run.GetAccountDetails(ctx, GetAccountDetailsRequest{})
-	if err != nil {
-		return
-	}
-
-	res.Status = accountRes.Status
-	return
-}
-
-// activities implements Activities
-type activities struct{}
-
-// ChargePaymentMethod implements Activities.ChargePaymentMethod
-func (a *activities) ChargePaymentMethod(ctx context.Context, req ChargePaymentMethodRequest) (res ChargePaymentMethodResponse, err error) {
-	res.Success = !req.Fail
-
-	if !res.Success {
-		err = errors.New("payment failed")
-	}
-	return
-}
-
 // customerSubscriptionsWorkflow implements CustomerSubscriptionsWorkflow
 type customerSubscriptionsWorkflow struct {
-	activities    ActivitiesProxy
+	Activities    ActivitiesProxy
 	accountStatus AccountStatus
 	discountCode  string
 }
@@ -91,7 +55,7 @@ func (wf *customerSubscriptionsWorkflow) GetAccountDetails(req GetAccountDetails
 func (wf *customerSubscriptionsWorkflow) AttemptPayment(ctx workflow.Context, req AttemptPaymentRequest) (res AttemptPaymentResponse, err error) {
 	wf.accountStatus = AccountStatusPaymentPending
 
-	_, err = wf.activities.ChargePaymentMethod(ctx, ChargePaymentMethodRequest{
+	_, err = wf.Activities.ChargePaymentMethod(ctx, ChargePaymentMethodRequest{
 		Fail: req.Fail,
 	})
 
@@ -116,27 +80,13 @@ func (wf *customerSubscriptionsWorkflow) CancelBilling(ctx workflow.Context, req
 	return
 }
 
-// NewService creates an instance of Service
+// NewCustomerSubscriptionsWorkflowFactory returns a factory function for CustomerSubscriptionsWorkflow
 //
 //kibu:provider
-func NewService(workflows WorkflowsClient) Service {
-	return &service{
-		Workflows: workflows,
-	}
-}
-
-// NewActivities creates an instance of Activities
-//
-//kibu:provider
-func NewActivities() Activities {
-	return &activities{}
-}
-
-// NewCustomerSubscriptionsWorkflow creates an instance of CustomerSubscriptionsWorkflow
-//
-//kibu:provider
-func NewCustomerSubscriptionsWorkflow(activities ActivitiesProxy) CustomerSubscriptionsWorkflow {
-	return &customerSubscriptionsWorkflow{
-		activities: activities,
+func NewCustomerSubscriptionsWorkflowFactory(activities ActivitiesProxy) CustomerSubscriptionsWorkflowFactory {
+	return func() (CustomerSubscriptionsWorkflow, error) {
+		return &customerSubscriptionsWorkflow{
+			Activities: activities,
+		}, nil
 	}
 }

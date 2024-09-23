@@ -62,17 +62,17 @@ type Service interface {
 
 // Activities synchronize the workflow state with an external payment gateway
 //
-//kibu:worker activity
+//kibu:activity
 type Activities interface {
 	// ChargePaymentMethod performs work against another transactional system
 	//
-	//kibu:activity
+	//kibu:activity:method
 	ChargePaymentMethod(ctx context.Context, req ChargePaymentMethodRequest) (res ChargePaymentMethodResponse, err error)
 }
 
 // CustomerSubscriptionsWorkflow represents a single long-running workflow for a customer
 //
-//kibu:worker workflow
+//kibu:workflow
 type CustomerSubscriptionsWorkflow interface {
 	// Execute initiates a long-running workflow for the customers account
 	//
