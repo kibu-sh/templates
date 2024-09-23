@@ -7,6 +7,7 @@ import (
 // customerSubscriptionsWorkflow implements CustomerSubscriptionsWorkflow
 type customerSubscriptionsWorkflow struct {
 	Activities    ActivitiesProxy
+	input         *customerSubscriptionsWorkflowInput
 	accountStatus AccountStatus
 	discountCode  string
 }
@@ -84,7 +85,7 @@ func (wf *customerSubscriptionsWorkflow) CancelBilling(ctx workflow.Context, req
 //
 //kibu:provider
 func NewCustomerSubscriptionsWorkflowFactory(activities ActivitiesProxy) CustomerSubscriptionsWorkflowFactory {
-	return func() (CustomerSubscriptionsWorkflow, error) {
+	return func(input *customerSubscriptionsWorkflowInput) (CustomerSubscriptionsWorkflow, error) {
 		return &customerSubscriptionsWorkflow{
 			Activities: activities,
 		}, nil

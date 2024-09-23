@@ -17,6 +17,7 @@ import (
 // compile time check to ensure implementations are correct
 var _ Service = (*service)(nil)
 var _ Activities = (*activities)(nil)
+var _ ActivitiesProxy = (*activitiesProxy)(nil)
 var _ CustomerSubscriptionsWorkflow = (*customerSubscriptionsWorkflow)(nil)
 
 const (
@@ -102,8 +103,6 @@ type WorkflowsProxy interface {
 type WorkflowsClient interface {
 	CustomerSubscriptions() CustomerSubscriptionsWorkflowClient
 }
-
-var _ ActivitiesProxy = (*activitiesProxy)(nil)
 
 type activitiesProxy struct{}
 
@@ -390,20 +389,20 @@ func (c *customerSubscriptionsChildRun) WaitStart(ctx workflow.Context) (*workfl
 	return &exec, nil
 }
 
-type CustomerSubscriptionsWorkflowInput struct {
+type customerSubscriptionsWorkflowInput struct {
 	Request                     CustomerSubscriptionsRequest
 	SetDiscountRequestChannel   SignalChannel[SetDiscountRequest]
 	CancelBillingRequestChannel SignalChannel[SetDiscountRequest]
 }
 
-type CustomerSubscriptionsWorkflowFactory func(input CustomerSubscriptionsWorkflowInput) (CustomerSubscriptionsWorkflow, error)
+type CustomerSubscriptionsWorkflowFactory func(input *customerSubscriptionsWorkflowInput) (CustomerSubscriptionsWorkflow, error)
 
 type CustomerSubscriptionsWorkflowController struct {
 	Factory CustomerSubscriptionsWorkflowFactory
 }
 
 func (wk *CustomerSubscriptionsWorkflowController) Execute(ctx workflow.Context, req CustomerSubscriptionsRequest) (res CustomerSubscriptionsResponse, err error) {
-	input := CustomerSubscriptionsWorkflowInput{
+	input := &customerSubscriptionsWorkflowInput{
 		Request:                     req,
 		SetDiscountRequestChannel:   NewSetDiscountSignalChannel(ctx),
 		CancelBillingRequestChannel: NewSetDiscountSignalChannel(ctx),

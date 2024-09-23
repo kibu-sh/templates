@@ -1,6 +1,6 @@
 module generatev1
 
-go 1.23.0
+go 1.23.1
 
 require (
 	github.com/dave/dst v0.27.3
