@@ -6,6 +6,27 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+// service implements Service
+type service struct {
+	Workflows WorkflowsClient
+}
+
+// WatchAccount implements Service.WatchAccount
+func (s *service) WatchAccount(ctx context.Context, req WatchAccountRequest) (res WatchAccountResponse, err error) {
+	run, err := s.Workflows.CustomerSubscriptions().Execute(ctx, CustomerSubscriptionsRequest{})
+	if err != nil {
+		return
+	}
+
+	accountRes, err := run.GetAccountDetails(ctx, GetAccountDetailsRequest{})
+	if err != nil {
+		return
+	}
+
+	res.Status = accountRes.Status
+	return
+}
+
 // activities implements Activities
 type activities struct{}
 
@@ -61,7 +82,7 @@ func (wf *customerSubscriptionsWorkflow) Execute(
 }
 
 // GetAccountDetails implements CustomerSubscriptionsWorkflow.GetAccountDetails
-func (wf *customerSubscriptionsWorkflow) GetAccountDetails(req GetAccountDetailsRequest) (res GetAccountDetailsResult, err error) {
+func (wf *customerSubscriptionsWorkflow) GetAccountDetails(req GetAccountDetailsRequest) (res GetAccountDetailsResponse, err error) {
 	res.Status = wf.accountStatus
 	return
 }
@@ -93,6 +114,15 @@ func (wf *customerSubscriptionsWorkflow) SetDiscount(ctx workflow.Context, req S
 func (wf *customerSubscriptionsWorkflow) CancelBilling(ctx workflow.Context, req CancelBillingRequest) (err error) {
 	wf.accountStatus = AccountStatusCanceled
 	return
+}
+
+// NewService creates an instance of Service
+//
+//kibu:provider
+func NewService(workflows WorkflowsClient) Service {
+	return &service{
+		Workflows: workflows,
+	}
 }
 
 // NewActivities creates an instance of Activities

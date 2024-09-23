@@ -46,13 +46,23 @@ type AttemptPaymentResponse struct {
 }
 
 type GetAccountDetailsRequest struct{}
-type GetAccountDetailsResult struct {
+type GetAccountDetailsResponse struct {
 	Status AccountStatus
+}
+
+// Service is the public-facing API for this system
+//
+//kibu:service
+type Service interface {
+	// WatchAccount watches the account status
+	//
+	//kibu:endpoint
+	WatchAccount(ctx context.Context, req WatchAccountRequest) (res WatchAccountResponse, err error)
 }
 
 // Activities synchronize the workflow state with an external payment gateway
 //
-//kibu:worker
+//kibu:worker activity
 type Activities interface {
 	// ChargePaymentMethod performs work against another transactional system
 	//
@@ -62,7 +72,7 @@ type Activities interface {
 
 // CustomerSubscriptionsWorkflow represents a single long-running workflow for a customer
 //
-//kibu:workflow
+//kibu:worker workflow
 type CustomerSubscriptionsWorkflow interface {
 	// Execute initiates a long-running workflow for the customers account
 	//
@@ -91,5 +101,5 @@ type CustomerSubscriptionsWorkflow interface {
 	// should not call activities (helps enforce determinism)
 	//
 	//kibu:workflow:query
-	GetAccountDetails(req GetAccountDetailsRequest) (res GetAccountDetailsResult, err error)
+	GetAccountDetails(req GetAccountDetailsRequest) (res GetAccountDetailsResponse, err error)
 }

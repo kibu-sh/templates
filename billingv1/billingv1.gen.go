@@ -3,14 +3,19 @@ package billingv1
 import (
 	"context"
 	"github.com/google/wire"
-	. "github.com/kibu-sh/kibu/pkg/transport/temporal"
+	"github.com/kibu-sh/kibu/pkg/transport"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
 	"time"
+
+	. "github.com/kibu-sh/kibu/pkg/transport/temporal"
 )
 
+// compile time check to ensure implementations are correct
+var _ Service = (*service)(nil)
+var _ Activities = (*activities)(nil)
 var _ CustomerSubscriptionsWorkflow = (*customerSubscriptionsWorkflow)(nil)
 
 const (
@@ -39,7 +44,7 @@ type CustomerSubscriptionsWorkflowRun interface {
 	CancelBilling(ctx context.Context, req CancelBillingRequest) error
 	SetDiscount(ctx context.Context, req SetDiscountRequest) error
 
-	GetAccountDetails(ctx context.Context, req GetAccountDetailsRequest) (GetAccountDetailsResult, error)
+	GetAccountDetails(ctx context.Context, req GetAccountDetailsRequest) (GetAccountDetailsResponse, error)
 
 	AttemptPayment(ctx context.Context, req AttemptPaymentRequest, mods ...UpdateOptionFunc) (AttemptPaymentResponse, error)
 	AttemptPaymentAsync(ctx context.Context, req AttemptPaymentRequest, mods ...UpdateOptionFunc) (UpdateHandle[AttemptPaymentResponse], error)
@@ -303,15 +308,15 @@ func (c *customerSubscriptionsRun) AttemptPayment(ctx context.Context, req Attem
 	return handle.Get(ctx)
 }
 
-func (c *customerSubscriptionsRun) GetAccountDetails(ctx context.Context, req GetAccountDetailsRequest) (GetAccountDetailsResult, error) {
+func (c *customerSubscriptionsRun) GetAccountDetails(ctx context.Context, req GetAccountDetailsRequest) (GetAccountDetailsResponse, error) {
 	queryResponse, err := c.client.QueryWorkflow(ctx, c.ID(), c.RunID(),
 		customerSubscriptionsWorkflowGetAccountDetailsName, req)
 
 	if err != nil {
-		return GetAccountDetailsResult{}, err
+		return GetAccountDetailsResponse{}, err
 	}
 
-	var result GetAccountDetailsResult
+	var result GetAccountDetailsResponse
 	err = queryResponse.Get(&result)
 	return result, err
 }
@@ -426,6 +431,19 @@ func (wk *CustomerSubscriptionsWorkflowController) Register(registry worker.Work
 	})
 }
 
+type ServiceController struct {
+	Service Service
+}
+
+func (c *ServiceController) Register(registry transport.HandlerRegistry) {
+	registry.Register(transport.RegisterOptions{
+		Method:  "GET",
+		Path:    "/billingv1/WatchAccount",
+		Tags:    []string{"public"},
+		Handler: transport.NewEndpoint(c.Service.WatchAccount),
+	})
+}
+
 type ActivitiesController struct {
 	Activities Activities
 }
@@ -466,12 +484,14 @@ func NewWorkflowsClient(client client.Client) WorkflowsClient {
 }
 
 var WireSet = wire.NewSet(
+	NewService,
+	NewActivities,
 	NewActivitiesProxy,
 	NewWorkflowsProxy,
 	NewWorkflowsClient,
-	NewActivities,
 	NewCustomerSubscriptionsWorkflow,
 	wire.Struct(new(Worker), "*"),
+	wire.Struct(new(ServiceController), "*"),
 	wire.Struct(new(ActivitiesController), "*"),
 	wire.Struct(new(CustomerSubscriptionsWorkflowController), "*"),
 )
