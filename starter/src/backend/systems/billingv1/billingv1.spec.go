@@ -56,7 +56,7 @@ type GetAccountDetailsResponse struct {
 type Service interface {
 	// WatchAccount watches the account status
 	//
-	//kibu:endpoint
+	//kibu:service:endpoint
 	WatchAccount(ctx context.Context, req WatchAccountRequest) (res WatchAccountResponse, err error)
 }
 
@@ -66,7 +66,7 @@ type Service interface {
 type Activities interface {
 	// ChargePaymentMethod performs work against another transactional system
 	//
-	//kibu:activity:method
+	//kibu:activity:endpoint
 	ChargePaymentMethod(ctx context.Context, req ChargePaymentMethodRequest) (res ChargePaymentMethodResponse, err error)
 }
 
