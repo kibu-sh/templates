@@ -19,6 +19,8 @@ var _ Service = (*service)(nil)
 var _ Activities = (*activities)(nil)
 var _ ActivitiesProxy = (*activitiesProxy)(nil)
 var _ CustomerSubscriptionsWorkflow = (*customerSubscriptionsWorkflow)(nil)
+var _ CustomerSubscriptionsWorkflowChildRun = (*customerSubscriptionsChildRun)(nil)
+var _ CustomerSubscriptionsWorkflowChildClient = (*customerSubscriptionsChildClient)(nil)
 
 const (
 	packageName                                        = "billingv1"
@@ -390,9 +392,9 @@ func (c *customerSubscriptionsChildRun) WaitStart(ctx workflow.Context) (*workfl
 }
 
 type customerSubscriptionsWorkflowInput struct {
-	Request                     CustomerSubscriptionsRequest
-	SetDiscountRequestChannel   SignalChannel[SetDiscountRequest]
-	CancelBillingRequestChannel SignalChannel[SetDiscountRequest]
+	Request              CustomerSubscriptionsRequest
+	SetDiscountChannel   SignalChannel[SetDiscountRequest]
+	CancelBillingChannel SignalChannel[SetDiscountRequest]
 }
 
 type CustomerSubscriptionsWorkflowFactory func(input *customerSubscriptionsWorkflowInput) (CustomerSubscriptionsWorkflow, error)
@@ -403,9 +405,9 @@ type CustomerSubscriptionsWorkflowController struct {
 
 func (wk *CustomerSubscriptionsWorkflowController) Execute(ctx workflow.Context, req CustomerSubscriptionsRequest) (res CustomerSubscriptionsResponse, err error) {
 	input := &customerSubscriptionsWorkflowInput{
-		Request:                     req,
-		SetDiscountRequestChannel:   NewSetDiscountSignalChannel(ctx),
-		CancelBillingRequestChannel: NewSetDiscountSignalChannel(ctx),
+		Request:              req,
+		SetDiscountChannel:   NewSetDiscountSignalChannel(ctx),
+		CancelBillingChannel: NewSetDiscountSignalChannel(ctx),
 	}
 
 	wf, err := wk.Factory(input)

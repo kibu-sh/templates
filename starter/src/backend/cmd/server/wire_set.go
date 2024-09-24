@@ -20,11 +20,12 @@ func BuildWorkerSet(w *WorkerSet) []worker.Worker {
 }
 
 type ServiceSet struct {
-	//Billingv1 billingv1.ServiceController
+	Billingv1 billingv1.ServiceController
 }
 
-func BuildServiceSet(s *ServiceSet) []*httpx.Handler {
-	return []*httpx.Handler{}
+func BuildServiceSet(s *ServiceSet) (handlers []*httpx.Handler) {
+	handlers = append(handlers, s.Billingv1.Build()...)
+	return
 }
 
 func NewWorkerOptions() worker.Options {
