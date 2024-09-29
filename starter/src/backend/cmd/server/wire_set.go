@@ -7,6 +7,9 @@ import (
 	"go.temporal.io/sdk/worker"
 	"kibu.sh/starter/src/backend/database/models"
 	"kibu.sh/starter/src/backend/systems/billingv1"
+	"kibu.sh/starter/src/backend/systems/billingv1/activities"
+	"kibu.sh/starter/src/backend/systems/billingv1/services"
+	"kibu.sh/starter/src/backend/systems/billingv1/workflows"
 )
 
 type WorkerSet struct {
@@ -36,14 +39,25 @@ func NewWorkerOptions() worker.Options {
 
 var wireSet = wire.NewSet(
 	wireset.DefaultSet,
+
+	// provided by system setup
+	BuildWorkerSet,
+	BuildServiceSet,
+	NewWorkerOptions,
+
+	// inject controllers
+	wire.Struct(new(WorkerSet), "*"),
+	wire.Struct(new(ServiceSet), "*"),
+
+	// import billing wire set
 	billingv1.WireSet,
+	services.NewService,
+	activities.NewActivities,
+	workflows.NewCustomerSubscriptionsWorkflowFactory,
+
+	// import database wire set
 	models.NewTxnProvider,
 	models.NewQuerier,
 	models.NewConnPool,
 	models.LoadConfig,
-	BuildWorkerSet,
-	BuildServiceSet,
-	NewWorkerOptions,
-	wire.Struct(new(WorkerSet), "*"),
-	wire.Struct(new(ServiceSet), "*"),
 )

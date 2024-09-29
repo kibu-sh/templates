@@ -9,12 +9,12 @@ import (
 
 var _ Activities = (*activities)(nil)
 
-// activities implements Activities
+// activities implements billingv1.Activities
 type activities struct {
 	TxnProvider models.TxnProvider
 }
 
-// ChargePaymentMethod implements Activities.ChargePaymentMethod
+// ChargePaymentMethod implements billingv1.Activities.ChargePaymentMethod
 func (a *activities) ChargePaymentMethod(ctx context.Context, req ChargePaymentMethodRequest) (res ChargePaymentMethodResponse, err error) {
 	res.Success = !req.Fail
 

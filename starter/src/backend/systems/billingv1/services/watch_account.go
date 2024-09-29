@@ -5,16 +5,13 @@ import (
 	. "kibu.sh/starter/src/backend/systems/billingv1"
 )
 
-// service provides a contract for the billing system
-//
-//kibu:service
+var _ Service = (*service)(nil)
+
+// service implements billingv1.Service
 type service struct {
 	Workflows WorkflowsClient
 }
 
-// WatchAccount establishes a connection and receives messages for account changes
-//
-//kibu:endpoint
 func (s *service) WatchAccount(ctx context.Context, req WatchAccountRequest) (res WatchAccountResponse, err error) {
 	run, err := s.Workflows.CustomerSubscriptions().Execute(ctx, CustomerSubscriptionsRequest{})
 	if err != nil {
