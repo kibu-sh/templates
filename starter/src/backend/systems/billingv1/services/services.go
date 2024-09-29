@@ -1,6 +1,9 @@
-package billingv1
+package services
 
-import "context"
+import (
+	"context"
+	. "kibu.sh/starter/src/backend/systems/billingv1"
+)
 
 // service provides a contract for the billing system
 //

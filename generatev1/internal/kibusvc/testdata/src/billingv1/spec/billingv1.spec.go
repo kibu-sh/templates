@@ -1,4 +1,4 @@
-package billingv1
+package spec
 
 import (
 	"context"
@@ -88,7 +88,7 @@ type CustomerSubscriptionsWorkflow interface {
 
 	// SetDiscount sets the discount code for the customer
 	//
-	//kibu:workflow:signal
+	//kibu:workflow:signal bind=async
 	SetDiscount(ctx workflow.Context, req SetDiscountRequest) error
 
 	// CancelBilling sends a signalChannel to cancel the customer's billing process

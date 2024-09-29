@@ -1,10 +1,10 @@
 package foov1
 
 import (
-	billingv1 "barv1"
 	"context"
 	"github.com/kibu-sh/kibu/pkg/transport/temporal"
 	"go.temporal.io/sdk/workflow"
+	"kibu.sh/starter/src/backend/systems/billingv1"
 )
 
 type activities struct {
@@ -26,14 +26,14 @@ func (a *activities) TryFromActivity(ctx context.Context) {
 
 	a.Billingv1.
 		CustomerSubscriptions().
-		Execute(ctx, billingv1.CustomerSubscriptionsRequest{})
+		Execute(ctx, billingv1.billingv1spec{})
 
-	_, err = handle.GetAccountDetails(ctx, billingv1.GetAccountDetailsRequest{})
+	_, err = handle.GetAccountDetails(ctx, billingv1.billingv1spec{})
 	if err != nil {
 		return
 	}
 
-	err = handle.SetDiscount(ctx, billingv1.SetDiscountRequest{
+	err = handle.SetDiscount(ctx, billingv1.billingv1spec{
 		DiscountCode: "temporal.replay.100.percent.off",
 	})
 
@@ -41,11 +41,11 @@ func (a *activities) TryFromActivity(ctx context.Context) {
 		return
 	}
 
-	_, err = handle.AttemptPayment(ctx, billingv1.AttemptPaymentRequest{
+	_, err = handle.AttemptPayment(ctx, billingv1.billingv1spec{
 		Fail: true,
 	})
 
-	err = handle.CancelBilling(ctx, billingv1.CancelBillingRequest{})
+	err = handle.CancelBilling(ctx, billingv1.billingv1spec{})
 	if err != nil {
 		return
 	}
@@ -56,9 +56,9 @@ func (a *activities) TryFromActivity(ctx context.Context) {
 func (wf *workflows) TryFromWorkflow(ctx workflow.Context) {
 	handle := wf.Billingv1.
 		CustomerSubscriptions().
-		ExecuteAsync(ctx, billingv1.CustomerSubscriptionsRequest{})
+		ExecuteAsync(ctx, billingv1.billingv1spec{})
 
-	err := handle.SetDiscount(ctx, billingv1.SetDiscountRequest{
+	err := handle.SetDiscount(ctx, billingv1.billingv1spec{
 		DiscountCode: "temporal.replay.100.percent.off",
 	})
 
@@ -73,7 +73,7 @@ func (wf *workflows) TryFromWorkflow(ctx workflow.Context) {
 		RunID:      "maybe-run-id",
 	})
 
-	_ = externalHandle.SetDiscount(ctx, billingv1.SetDiscountRequest{
+	_ = externalHandle.SetDiscount(ctx, billingv1.billingv1spec{
 		DiscountCode: "temporal.replay.100.percent.off",
 	})
 

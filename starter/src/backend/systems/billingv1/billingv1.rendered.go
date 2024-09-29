@@ -5,20 +5,18 @@ import (
 	"github.com/google/wire"
 	"github.com/kibu-sh/kibu/pkg/transport"
 	"github.com/kibu-sh/kibu/pkg/transport/httpx"
+	"github.com/kibu-sh/kibu/pkg/transport/temporal"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
 	"time"
-
-	"github.com/kibu-sh/kibu/pkg/transport/temporal"
 )
 
 // compile time check to ensure implementations are correct
-var _ Service = (*service)(nil)
-var _ Activities = (*activities)(nil)
 var _ ActivitiesProxy = (*activitiesProxy)(nil)
-var _ CustomerSubscriptionsWorkflow = (*customerSubscriptionsWorkflow)(nil)
+var _ WorkflowsProxy = (*workflowsProxy)(nil)
+var _ WorkflowsClient = (*workflowsClient)(nil)
 var _ CustomerSubscriptionsWorkflowChildRun = (*customerSubscriptionsChildRun)(nil)
 var _ CustomerSubscriptionsWorkflowChildClient = (*customerSubscriptionsChildClient)(nil)
 
@@ -59,12 +57,12 @@ type CustomerSubscriptionsWorkflowChildRun interface {
 	IsReady() bool
 	Underlying() workflow.ChildWorkflowFuture
 	Get(ctx workflow.Context) (CustomerSubscriptionsResponse, error)
+	WaitStart(ctx workflow.Context) (*workflow.Execution, error)
+	Select(sel workflow.Selector, fn func(CustomerSubscriptionsWorkflowChildRun)) workflow.Selector
+	SelectStart(sel workflow.Selector, fn func(CustomerSubscriptionsWorkflowChildRun)) workflow.Selector
+
 	CancelBilling(ctx workflow.Context, req CancelBillingRequest) error
 	SetDiscount(ctx workflow.Context, req SetDiscountRequest) error
-
-	WaitStart(ctx workflow.Context) (*workflow.Execution, error)
-	SelectStart(sel workflow.Selector, fn func(CustomerSubscriptionsWorkflowChildRun)) workflow.Selector
-	Select(sel workflow.Selector, fn func(CustomerSubscriptionsWorkflowChildRun)) workflow.Selector
 }
 
 type CustomerSubscriptionsExternalRun interface {
@@ -83,19 +81,13 @@ type CustomerSubscriptionsExternalRun interface {
 type CustomerSubscriptionsWorkflowClient interface {
 	GetHandle(ctx context.Context, ref temporal.GetHandleOpts) (CustomerSubscriptionsWorkflowRun, error)
 	Execute(ctx context.Context, req CustomerSubscriptionsRequest, mods ...temporal.WorkflowOptionFunc) (CustomerSubscriptionsWorkflowRun, error)
-	ExecuteWithSetDiscount(ctx context.Context, req *CustomerSubscriptionsRequest, sig SetDiscountRequest, mods ...temporal.WorkflowOptionFunc) (CustomerSubscriptionsWorkflowRun, error)
+	ExecuteWithSetDiscount(ctx context.Context, req CustomerSubscriptionsRequest, sig SetDiscountRequest, mods ...temporal.WorkflowOptionFunc) (CustomerSubscriptionsWorkflowRun, error)
 }
 
 type CustomerSubscriptionsWorkflowChildClient interface {
+	External(ref temporal.GetHandleOpts) CustomerSubscriptionsExternalRun
 	Execute(ctx workflow.Context, req CustomerSubscriptionsRequest, mods ...temporal.WorkflowOptionFunc) (CustomerSubscriptionsResponse, error)
 	ExecuteAsync(ctx workflow.Context, req CustomerSubscriptionsRequest, mods ...temporal.WorkflowOptionFunc) CustomerSubscriptionsWorkflowChildRun
-	External(ref temporal.GetHandleOpts) CustomerSubscriptionsExternalRun
-}
-
-// ActivitiesProxy is a workflow interface for Activities
-type ActivitiesProxy interface {
-	ChargePaymentMethod(ctx workflow.Context, req ChargePaymentMethodRequest, mods ...temporal.ActivityOptionFunc) (res ChargePaymentMethodResponse, err error)
-	ChargePaymentMethodAsync(ctx workflow.Context, req ChargePaymentMethodRequest, mods ...temporal.ActivityOptionFunc) temporal.Future[ChargePaymentMethodResponse]
 }
 
 type WorkflowsProxy interface {
@@ -104,6 +96,12 @@ type WorkflowsProxy interface {
 
 type WorkflowsClient interface {
 	CustomerSubscriptions() CustomerSubscriptionsWorkflowClient
+}
+
+// ActivitiesProxy is a workflow interface for Activities
+type ActivitiesProxy interface {
+	ChargePaymentMethod(ctx workflow.Context, req ChargePaymentMethodRequest, mods ...temporal.ActivityOptionFunc) (res ChargePaymentMethodResponse, err error)
+	ChargePaymentMethodAsync(ctx workflow.Context, req ChargePaymentMethodRequest, mods ...temporal.ActivityOptionFunc) temporal.Future[ChargePaymentMethodResponse]
 }
 
 type activitiesProxy struct{}
@@ -179,9 +177,9 @@ func (c *customerSubscriptionsClient) GetHandle(ctx context.Context, ref tempora
 	}, nil
 }
 
-func (c *customerSubscriptionsClient) ExecuteWithSetDiscount(ctx context.Context, req *CustomerSubscriptionsRequest, sig SetDiscountRequest, mods ...temporal.WorkflowOptionFunc) (CustomerSubscriptionsWorkflowRun, error) {
+func (c *customerSubscriptionsClient) ExecuteWithSetDiscount(ctx context.Context, req CustomerSubscriptionsRequest, sig SetDiscountRequest, mods ...temporal.WorkflowOptionFunc) (CustomerSubscriptionsWorkflowRun, error) {
 	options := temporal.NewWorkflowOptionsBuilder().
-		WithProvidersWhenSupported(sig).
+		WithProvidersWhenSupported(req).
 		WithOptions(mods...).
 		WithTaskQueue(packageName).
 		AsStartOptions()
@@ -391,23 +389,23 @@ func (c *customerSubscriptionsChildRun) WaitStart(ctx workflow.Context) (*workfl
 	return &exec, nil
 }
 
-type customerSubscriptionsWorkflowInput struct {
+type CustomerSubscriptionsWorkflowInput struct {
 	Request              CustomerSubscriptionsRequest
 	SetDiscountChannel   temporal.SignalChannel[SetDiscountRequest]
-	CancelBillingChannel temporal.SignalChannel[SetDiscountRequest]
+	CancelBillingChannel temporal.SignalChannel[CancelBillingRequest]
 }
 
-type CustomerSubscriptionsWorkflowFactory func(input *customerSubscriptionsWorkflowInput) (CustomerSubscriptionsWorkflow, error)
+type CustomerSubscriptionsWorkflowFactory func(input *CustomerSubscriptionsWorkflowInput) (CustomerSubscriptionsWorkflow, error)
 
 type CustomerSubscriptionsWorkflowController struct {
 	Factory CustomerSubscriptionsWorkflowFactory
 }
 
 func (wk *CustomerSubscriptionsWorkflowController) Execute(ctx workflow.Context, req CustomerSubscriptionsRequest) (res CustomerSubscriptionsResponse, err error) {
-	input := &customerSubscriptionsWorkflowInput{
+	input := &CustomerSubscriptionsWorkflowInput{
 		Request:              req,
 		SetDiscountChannel:   NewSetDiscountSignalChannel(ctx),
-		CancelBillingChannel: NewSetDiscountSignalChannel(ctx),
+		CancelBillingChannel: NewCancelBillingSignalChannel(ctx),
 	}
 
 	wf, err := wk.Factory(input)
@@ -496,12 +494,9 @@ func NewWorkflowsClient(client client.Client) WorkflowsClient {
 }
 
 var WireSet = wire.NewSet(
-	NewService,
-	NewActivities,
 	NewActivitiesProxy,
 	NewWorkflowsProxy,
 	NewWorkflowsClient,
-	NewCustomerSubscriptionsWorkflowFactory,
 	wire.Struct(new(WorkerController), "*"),
 	wire.Struct(new(ServiceController), "*"),
 	wire.Struct(new(ActivitiesController), "*"),

@@ -1,15 +1,19 @@
-package billingv1
+package workflows
 
 import (
 	"go.temporal.io/sdk/workflow"
+	. "kibu.sh/starter/src/backend/systems/billingv1"
 )
+
+// ensure that customerSubscriptionsWorkflow implements CustomerSubscriptionsWorkflow
+var _ CustomerSubscriptionsWorkflow = (*customerSubscriptionsWorkflow)(nil)
 
 // customerSubscriptionsWorkflow implements CustomerSubscriptionsWorkflow
 type customerSubscriptionsWorkflow struct {
 	Activities    ActivitiesProxy
-	input         *customerSubscriptionsWorkflowInput
 	accountStatus AccountStatus
 	discountCode  string
+	input         *CustomerSubscriptionsWorkflowInput
 }
 
 // Execute implements CustomerSubscriptionsWorkflow.Execute
@@ -22,14 +26,14 @@ func (wf *customerSubscriptionsWorkflow) Execute(
 
 	workflow.Go(ctx, func(ctx workflow.Context) {
 		for {
-			signal, _ := NewCancelBillingSignalChannel(ctx).Receive(ctx)
+			signal, _ := wf.input.CancelBillingChannel.Receive(ctx)
 			_ = wf.CancelBilling(ctx, signal)
 		}
 	})
 
 	workflow.Go(ctx, func(ctx workflow.Context) {
 		for {
-			NewCancelBillingSignalChannel(ctx).
+			wf.input.CancelBillingChannel.
 				Select(workflow.NewSelector(ctx), nil).
 				Select(ctx)
 		}
@@ -85,7 +89,7 @@ func (wf *customerSubscriptionsWorkflow) CancelBilling(ctx workflow.Context, req
 //
 //kibu:provider
 func NewCustomerSubscriptionsWorkflowFactory(activities ActivitiesProxy) CustomerSubscriptionsWorkflowFactory {
-	return func(input *customerSubscriptionsWorkflowInput) (CustomerSubscriptionsWorkflow, error) {
+	return func(_ *CustomerSubscriptionsWorkflowInput) (CustomerSubscriptionsWorkflow, error) {
 		return &customerSubscriptionsWorkflow{
 			Activities: activities,
 		}, nil

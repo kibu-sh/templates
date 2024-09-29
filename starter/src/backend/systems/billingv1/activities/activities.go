@@ -1,10 +1,13 @@
-package billingv1
+package activities
 
 import (
 	"context"
 	"errors"
 	"kibu.sh/starter/src/backend/database/models"
+	. "kibu.sh/starter/src/backend/systems/billingv1"
 )
+
+var _ Activities = (*activities)(nil)
 
 // activities implements Activities
 type activities struct {
