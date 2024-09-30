@@ -53,6 +53,7 @@ func (wf *customerSubscriptionsWorkflow) Execute(
 // GetAccountDetails implements CustomerSubscriptionsWorkflow.GetAccountDetails
 func (wf *customerSubscriptionsWorkflow) GetAccountDetails(req GetAccountDetailsRequest) (res GetAccountDetailsResponse, err error) {
 	res.Status = wf.accountStatus
+	res.DiscountCode = wf.discountCode
 	return
 }
 
@@ -89,9 +90,10 @@ func (wf *customerSubscriptionsWorkflow) CancelBilling(ctx workflow.Context, req
 //
 //kibu:provider
 func NewCustomerSubscriptionsWorkflowFactory(activities ActivitiesProxy) CustomerSubscriptionsWorkflowFactory {
-	return func(_ *CustomerSubscriptionsWorkflowInput) (CustomerSubscriptionsWorkflow, error) {
+	return func(input *CustomerSubscriptionsWorkflowInput) (CustomerSubscriptionsWorkflow, error) {
 		return &customerSubscriptionsWorkflow{
 			Activities: activities,
+			input:      input,
 		}, nil
 	}
 }

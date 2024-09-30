@@ -1,1 +1,1 @@
-POST http://localhost:6387/billingv1/WatchAccount
+POST http://localhost:6387/billingv1/Service/WatchAccount

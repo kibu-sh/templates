@@ -48,7 +48,8 @@ type AttemptPaymentResponse struct {
 
 type GetAccountDetailsRequest struct{}
 type GetAccountDetailsResponse struct {
-	Status AccountStatus
+	Status       AccountStatus
+	DiscountCode string
 }
 
 // Service is the public-facing API for this system
