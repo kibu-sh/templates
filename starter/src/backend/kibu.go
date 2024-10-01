@@ -1,0 +1,3 @@
+package backend
+
+//go:generate go run github.com/kibu-sh/kibu/internal/toolchain/kibuwire/cmd/kibuwire -out gen/ ./...
