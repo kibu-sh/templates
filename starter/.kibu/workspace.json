@@ -1,12 +1,26 @@
 {
-  "code_gen": {
-    "output_dir": "src/backend"
-  },
   "config_store": {
     "encryption_keys": [{
       "env": "dev",
       "engine": "base64key",
       "key": "smGbjm71Nxd1Ig5FS0wj9SlbzAIrnolCz9bQQ6uAhl4="
     }]
+  },
+  "tasks": {
+    "generate": {
+      "commands": [
+        "kibugenv2 ./...",
+        "wire ./...",
+        "go generate ./..."
+      ]
+    },
+    "build": {
+      "depends_on": [
+        "generate"
+      ],
+      "commands": [
+        "go build -o ./bin/backend ./src/backend/cmd/server"
+      ]
+    }
   }
 }
