@@ -2,23 +2,23 @@ package services
 
 import (
 	"context"
-	. "kibu.sh/starter/src/backend/systems/billingv1"
+	"kibu.sh/starter/src/backend/systems/billingv1"
 )
 
-var _ Service = (*service)(nil)
+var _ billingv1.Service = (*service)(nil)
 
 // service implements billingv1.Service
 type service struct {
-	Workflows WorkflowsClient
+	Workflows billingv1.WorkflowsClient
 }
 
-func (s *service) WatchAccount(ctx context.Context, req WatchAccountRequest) (res WatchAccountResponse, err error) {
-	run, err := s.Workflows.CustomerSubscriptionsWorkflow().Execute(ctx, CustomerSubscriptionsRequest{})
+func (s *service) WatchAccount(ctx context.Context, req billingv1.WatchAccountRequest) (res billingv1.WatchAccountResponse, err error) {
+	run, err := s.Workflows.CustomerSubscriptionsWorkflow().Execute(ctx, billingv1.CustomerSubscriptionsRequest{})
 	if err != nil {
 		return
 	}
 
-	accountRes, err := run.GetAccountDetails(ctx, GetAccountDetailsRequest{})
+	accountRes, err := run.GetAccountDetails(ctx, billingv1.GetAccountDetailsRequest{})
 	if err != nil {
 		return
 	}
@@ -30,7 +30,7 @@ func (s *service) WatchAccount(ctx context.Context, req WatchAccountRequest) (re
 // NewService creates an instance of Service
 //
 //kibu:provider
-func NewService(workflows WorkflowsClient) Service {
+func NewService(workflows billingv1.WorkflowsClient) billingv1.Service {
 	return &service{
 		Workflows: workflows,
 	}

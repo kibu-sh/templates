@@ -2,27 +2,27 @@ package workflows
 
 import (
 	"go.temporal.io/sdk/workflow"
-	. "kibu.sh/starter/src/backend/systems/billingv1"
+	"kibu.sh/starter/src/backend/systems/billingv1"
 )
 
 // ensure that customerSubscriptionsWorkflow implements CustomerSubscriptionsWorkflow
-var _ CustomerSubscriptionsWorkflow = (*customerSubscriptionsWorkflow)(nil)
+var _ billingv1.CustomerSubscriptionsWorkflow = (*customerSubscriptionsWorkflow)(nil)
 
 // customerSubscriptionsWorkflow implements CustomerSubscriptionsWorkflow
 type customerSubscriptionsWorkflow struct {
-	Activities    ActivitiesProxy
-	accountStatus AccountStatus
+	Activities    billingv1.ActivitiesProxy
+	accountStatus billingv1.AccountStatus
 	discountCode  string
-	input         *CustomerSubscriptionsWorkflowInput
+	input         *billingv1.CustomerSubscriptionsWorkflowInput
 }
 
 // Execute implements CustomerSubscriptionsWorkflow.Execute
 func (wf *customerSubscriptionsWorkflow) Execute(
 	ctx workflow.Context,
-	req CustomerSubscriptionsRequest,
-) (res CustomerSubscriptionsResponse, err error) {
+	req billingv1.CustomerSubscriptionsRequest,
+) (res billingv1.CustomerSubscriptionsResponse, err error) {
 	// set initial account status
-	wf.accountStatus = AccountStatusSubscribed
+	wf.accountStatus = billingv1.AccountStatusSubscribed
 
 	workflow.Go(ctx, func(ctx workflow.Context) {
 		for {
@@ -41,7 +41,7 @@ func (wf *customerSubscriptionsWorkflow) Execute(
 
 	workflow.Go(ctx, func(ctx workflow.Context) {
 		for {
-			signal, _ := NewSetDiscountSignalChannel(ctx).Receive(ctx)
+			signal, _ := billingv1.NewSetDiscountSignalChannel(ctx).Receive(ctx)
 			_ = wf.SetDiscount(ctx, signal)
 		}
 	})
@@ -51,46 +51,46 @@ func (wf *customerSubscriptionsWorkflow) Execute(
 }
 
 // GetAccountDetails implements CustomerSubscriptionsWorkflow.GetAccountDetails
-func (wf *customerSubscriptionsWorkflow) GetAccountDetails(req GetAccountDetailsRequest) (res GetAccountDetailsResponse, err error) {
+func (wf *customerSubscriptionsWorkflow) GetAccountDetails(req billingv1.GetAccountDetailsRequest) (res billingv1.GetAccountDetailsResponse, err error) {
 	res.Status = wf.accountStatus
 	res.DiscountCode = wf.discountCode
 	return
 }
 
 // AttemptPayment implements CustomerSubscriptionsWorkflow.AttemptPayment
-func (wf *customerSubscriptionsWorkflow) AttemptPayment(ctx workflow.Context, req AttemptPaymentRequest) (res AttemptPaymentResponse, err error) {
-	wf.accountStatus = AccountStatusPaymentPending
+func (wf *customerSubscriptionsWorkflow) AttemptPayment(ctx workflow.Context, req billingv1.AttemptPaymentRequest) (res billingv1.AttemptPaymentResponse, err error) {
+	wf.accountStatus = billingv1.AccountStatusPaymentPending
 
-	_, err = wf.Activities.ChargePaymentMethod(ctx, ChargePaymentMethodRequest{
+	_, err = wf.Activities.ChargePaymentMethod(ctx, billingv1.ChargePaymentMethodRequest{
 		Fail: req.Fail,
 	})
 
 	if err != nil {
-		wf.accountStatus = AccountStatusPaymentFailed
+		wf.accountStatus = billingv1.AccountStatusPaymentFailed
 		return
 	}
 
-	wf.accountStatus = AccountStatusSubscribed
+	wf.accountStatus = billingv1.AccountStatusSubscribed
 	return
 }
 
 // SetDiscount implements CustomerSubscriptionsWorkflow.SetDiscount
-func (wf *customerSubscriptionsWorkflow) SetDiscount(ctx workflow.Context, req SetDiscountRequest) error {
+func (wf *customerSubscriptionsWorkflow) SetDiscount(ctx workflow.Context, req billingv1.SetDiscountRequest) error {
 	wf.discountCode = req.DiscountCode
 	return nil
 }
 
 // CancelBilling implements CustomerSubscriptionsWorkflow.CancelBilling
-func (wf *customerSubscriptionsWorkflow) CancelBilling(ctx workflow.Context, req CancelBillingRequest) (err error) {
-	wf.accountStatus = AccountStatusCanceled
+func (wf *customerSubscriptionsWorkflow) CancelBilling(ctx workflow.Context, req billingv1.CancelBillingRequest) (err error) {
+	wf.accountStatus = billingv1.AccountStatusCanceled
 	return
 }
 
 // NewCustomerSubscriptionsWorkflowFactory returns a factory function for CustomerSubscriptionsWorkflow
 //
 //kibu:provider
-func NewCustomerSubscriptionsWorkflowFactory(activities ActivitiesProxy) CustomerSubscriptionsWorkflowFactory {
-	return func(input *CustomerSubscriptionsWorkflowInput) (CustomerSubscriptionsWorkflow, error) {
+func NewCustomerSubscriptionsWorkflowFactory(activities billingv1.ActivitiesProxy) billingv1.CustomerSubscriptionsWorkflowFactory {
+	return func(input *billingv1.CustomerSubscriptionsWorkflowInput) (billingv1.CustomerSubscriptionsWorkflow, error) {
 		return &customerSubscriptionsWorkflow{
 			Activities: activities,
 			input:      input,
