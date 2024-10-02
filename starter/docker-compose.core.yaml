@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:14
+    restart: always
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "password"
+      POSTGRES_DB: "kibu"
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./docker/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf
+      - ./docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+
+  temporal:
+    restart: always
+    image: temporalio/auto-setup:latest
+    environment:
+      DB: "postgres12"
+      DB_PORT: "5432"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PWD: "password"
+      POSTGRES_SEEDS: "postgres"
+    ports:
+      - "7233:7233"
+
+  temporal-ui:
+    restart: always
+    environment:
+      TEMPORAL_ADDRESS: "temporal:7233"
+      TEMPORAL_UI_PORT: "8088"
+      TEMPORAL_CSRF_COOKIE_INSECURE: "true"
+    image: "temporalio/ui:latest"
+    ports:
+      - "8088:8088"
+
+volumes:
+  postgres:
